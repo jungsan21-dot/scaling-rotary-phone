@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>도담마루 도서관 월 출석부 (v4.6.5)</title>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_four@1.2/JalnanGothic.woff');
+
+        @keyframes pop-in {
+            0% { transform: scale(0.9); } 50% { transform: scale(1.1); } 100% { transform: scale(1); }
+        }
+
+        :root {
+            --bg-color: #FFFFF0; /* 아이보리색 */
+            --container-bg: #ffffff;
+            --border-color: #e5e7eb;
+            --header-bg: linear-gradient(135deg, #f97316, #facc15);
+            --text-color: #374151;
+            --header-text-color: #ffffff;
+            --button-disabled-bg: #9ca3af;
+            --top-display-height: 28vh;
+        }
+
+        body {
+            font-family: 'JalnanGothic', 'Malgun Gothic', sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            color: var(--text-color);
+            height: 100vh;
+            box-sizing: border-box;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #top-display-container {
+            padding: 1.5vh 2vw;
+            background-color: #f8fafc;
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+            position: relative;
+            height: var(--top-display-height);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: height 0.3s ease-in-out;
+        }
+
+        .display-view {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        #date-display-section {
+             justify-content: space-around;
+        }
+
+        .display-hidden { opacity: 0; pointer-events: none; }
+        .display-visible { opacity: 1; }
+
+        .date-box { text-align: center; }
+        .date-box h2 {
+            font-size: clamp(24px, 4vh, 40px);
+            margin: 0 0 1vh 0;
+        }
+        .date-content {
+            display: flex;
+            align-items: baseline;
+            line-height: 1;
+        }
+        .date-number {
+            font-size: clamp(50px, 12vh, 110px);
+            font-weight: bold;
+        }
+        .date-text {
+            font-size: clamp(24px, 4vh, 40px);
+            margin: 0 1vw;
+        }
+        .loan-date h2 { color: #16a34a; }
+        .loan-date .date-number { color: #15803d; }
+        .return-date h2 { color: #f97316; }
+        .return-date .date-number { color: #c2410c; }
+        
+        #time-display-section {
+            color: #6b7280;
+            font-weight: bold;
+            align-items: baseline;
+            justify-content: flex-end; /* 가로 우측 정렬 */
+            align-items: flex-end;   /* 세로 하단 정렬 */
+            padding: 0 2vw 1vh 0;
+            box-sizing: border-box;
+            gap: 1vw;
+        }
+        .time-main {
+            font-size: clamp(64px, 16vh, 144px); /* 크기 20% 축소 */
+            line-height: 1;
+        }
+        .time-sub {
+            font-size: clamp(19px, 4.8vh, 38px); /* 크기 20% 축소 */
+            padding-bottom: 1.5vh;
+        }
+        .time-icon {
+            font-size: clamp(32px, 8vh, 64px); /* 크기 20% 축소 */
+            padding-bottom: 1vh;
+        }
+
+        .container {
+            width: 100%;
+            flex-grow: 1;
+            background-color: var(--container-bg);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding: 1vh 1vw;
+            box-sizing: border-box;
+        }
+
+        header {
+            background: var(--header-bg);
+            color: var(--header-text-color);
+            padding: clamp(15px, 2vh, 20px) clamp(15px, 2vw, 25px); /* 세로 크기 15% 증가 */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            border-radius: 20px;
+        }
+
+        header h1 { 
+            margin: 0; 
+            font-size: clamp(28px, 3.5vh, 36px); /* 폰트 크기 증가 */
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.2); 
+        }
+        
+        .header-controls { display: flex; align-items: center; gap: 15px; }
+        #version-display, #wake-lock-status { font-size: clamp(12px, 1.5vh, 14px); font-weight: bold; opacity: 0.8; }
+        #wake-lock-status { font-size: 1.2em; }
+
+        .header-btn {
+            padding: clamp(8px, 1vh, 10px) clamp(14px, 1.5vw, 18px);
+            font-size: clamp(12px, 1.5vh, 14px);
+            border: none; background-color: rgba(255, 255, 255, 0.25);
+            color: var(--header-text-color); border-radius: 10px; cursor: pointer;
+            font-weight: bold; transition: background-color 0.3s;
+        }
+        .header-btn:hover { background-color: rgba(255, 255, 255, 0.4); }
+        #exit-manual-mode-button { background-color: #dc2626; }
+        
+        #manual-mode-all-controls .label {
+            font-size: clamp(12px, 1.5vh, 14px);
+            font-weight: bold;
+        }
+
+        #chart-container {
+            flex-grow: 1;
+            padding: 1vw;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            grid-auto-rows: 1fr;
+            gap: 1vw;
+            overflow: hidden;
+        }
+
+        .student-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 1vh;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            justify-content: space-between;
+        }
+
+        .student-name {
+            font-weight: bold;
+            font-size: clamp(2.2em, 5.5vh, 3.5em);
+            line-height: 1.1;
+        }
+        
+        .attendance-info { margin: 0.5vh 0; }
+        .attendance-info .count {
+            font-size: clamp(1.2em, 2.5vh, 1.6em);
+            font-weight: bold;
+            color: #2563eb;
+        }
+        .attendance-info .label {
+            font-size: clamp(0.8em, 1.2vh, 0.9em);
+            color: #6b7280;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .circular-btn {
+            width: clamp(48px, 6.5vh, 64px);
+            height: clamp(48px, 6.5vh, 64px);
+            border-radius: 50%; border: none; color: white;
+            font-weight: bold; font-size: clamp(0.9em, 1.6vh, 1em);
+            cursor: pointer; transition: all 0.2s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        .circular-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.2); }
+        .circular-btn:disabled { 
+            background-color: var(--button-disabled-bg) !important; 
+            cursor: not-allowed; box-shadow: none; 
+        }
+        .undo-btn { 
+            cursor: pointer; 
+            background-color: var(--button-disabled-bg) !important;
+        }
+
+        .gift-btn-container { display: flex; flex-direction: column; gap: 4px; }
+        .gift-btn {
+            width: clamp(32px, 4.5vh, 40px); height: clamp(32px, 4.5vh, 40px);
+            font-size: clamp(1em, 2.2vh, 1.2em);
+            border-radius: 50%; border: none; color: white;
+            cursor: pointer; transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+            background-color: #ea580c;
+        }
+        .gift-btn:hover:not(:disabled) { transform: translateY(-2px); }
+        .gift-btn:disabled { background-color: #9ca3af; cursor: not-allowed; box-shadow: none; }
+
+        .modal {
+            display: none; position: fixed; z-index: 1000; left: 0; top: 0;
+            width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background-color: #fefefe; padding: 25px; border-radius: 12px;
+            width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); position: relative;
+        }
+        .modal-content h2, .modal-content h3 { margin-top: 0; color: #374151; }
+        .modal-content h3 { font-size: 1.1em; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .modal-content label { display: block; margin-top: 10px; margin-bottom: 5px; font-weight: bold; font-size: 0.9em;}
+        .modal-content input, .modal-content select, .modal-content button {
+            width: 100%; padding: 10px; margin-bottom: 10px; box-sizing: border-box;
+            border-radius: 6px; border: 1px solid #ccc;
+        }
+        .modal-content input[type="range"] { padding: 0; }
+        .modal-content button { border: none; color: white; cursor: pointer; }
+        .modal-content .input-group { display: flex; gap: 5px; }
+        .modal-content .input-group input { flex-grow: 1; }
+        .modal-close-button { background-color: #aaa; }
+        .modal-save-button { background-color: #f97316; }
+
+        #gacha-modal .modal-content { width: 100%; height: 100%; padding: 0; overflow: hidden; border-radius: 0;}
+        #gacha-iframe { width: 100%; height: 100%; border: none; }
+        #gacha-modal-close-button {
+            position: absolute; top: 15px; right: 15px; width: 40px; height: 40px;
+            border-radius: 50%; background-color: rgba(0,0,0,0.5); color: white;
+            font-size: 20px; line-height: 1; z-index: 1001; border: 2px solid white;
+            padding: 0; margin: 0;
+        }
+    </style>
+    <style id="dynamic-styles"></style>
+</head>
+<body>
+    <div id="top-display-container">
+        <div id="date-display-section" class="display-view display-visible">
+            <div class="date-box loan-date">
+                <h2>도서 대출일</h2>
+                <div id="loan-date-container" class="date-content"></div>
+            </div>
+            <div class="date-box return-date">
+                <h2>도서 반납일</h2>
+                <div id="return-date-container" class="date-content"></div>
+            </div>
+        </div>
+        <div id="time-display-section" class="display-view display-hidden">
+            <!-- Current time will be injected here -->
+        </div>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1 id="main-title"></h1>
+            <div class="header-controls">
+                <span id="wake-lock-status" title="화면 꺼짐 방지 활성화" style="display: none;">☀️</span>
+                <span id="version-display"></span>
+                <div id="manual-mode-all-controls" style="display: none; align-items: center; gap: 10px;">
+                    <span class="label">전체 출석일 조정</span>
+                    <button id="all-minus-button" class="header-btn" style="background-color: #dc3545;">-1</button>
+                    <button id="all-plus-button" class="header-btn" style="background-color: #28a745;">+1</button>
+                </div>
+                <button id="manual-mode-button" class="header-btn">출석 수동조정</button>
+                <button id="admin-button" class="header-btn">관리자 모드</button>
+                <button id="exit-manual-mode-button" class="header-btn" style="display: none;">나가기</button>
+            </div>
+        </header>
+        
+        <div id="chart-container"></div>
+    </div>
+
+    <!-- Modals -->
+    <div id="admin-code-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="admin-code-title">관리자 코드 입력</h2>
+            <input type="password" id="admin-code-input" placeholder="****" maxlength="4">
+            <div style="display:flex; gap:10px;">
+                <button id="admin-code-confirm" class="modal-save-button">확인</button>
+                <button id="admin-code-cancel" class="modal-close-button">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="admin-modal" class="modal">
+        <div class="modal-content" style="max-height: 90vh; overflow-y: auto;">
+            <h2>관리자 설정</h2>
+            
+            <h3>학생 관리</h3>
+            <label for="new-student-name-input">새 학생 추가:</label>
+            <div class="input-group">
+                <input type="text" id="new-student-name-input" placeholder="학생 이름">
+                <button id="add-student-button" style="background-color:#28a745; min-width: 60px;">추가</button>
+            </div>
+            <label for="student-select-manage">기존 학생 수정/삭제:</label>
+            <select id="student-select-manage"></select>
+            <div class="input-group">
+                <input type="text" id="edit-student-name-input" placeholder="새 이름">
+                <button id="edit-student-name-button" style="background-color:#ffc107;">수정</button>
+            </div>
+            <button id="delete-student-button" style="background-color:#dc3545; margin-top: 5px;">선택한 학생 삭제</button>
+
+            <h3>보상 관리</h3>
+            <label for="student-select-reward">학생 선택:</label>
+            <select id="student-select-reward"></select>
+            <div style="display:flex; gap:10px;">
+                <button id="reset-gift-13-button" style="background-color:#fd7e14;">13일 선물 초기화</button>
+                <button id="reset-gift-18-button" style="background-color:#fd7e14;">18일 선물 초기화</button>
+            </div>
+
+            <h3>알람 관리</h3>
+            <label for="alarm-time-1">알람 1 시간:</label>
+            <input type="time" id="alarm-time-1">
+            <label for="alarm-time-2">알람 2 시간:</label>
+            <input type="time" id="alarm-time-2">
+            <button id="save-alarm-times-button" style="background-color:#0d9488;">알람 시간 저장</button>
+            
+            <h3>디자인 설정</h3>
+            <label for="font-size-slider">학생 이름 크기: <span id="font-size-value">2.2em</span></label>
+            <input type="range" id="font-size-slider" min="1.5" max="3.5" step="0.1" value="2.2">
+            <label for="top-display-height-slider">상단 정보창 높이: <span id="top-display-height-value">28vh</span></label>
+            <input type="range" id="top-display-height-slider" min="15" max="40" step="1" value="28">
+            <button id="save-design-button" style="background-color:#3b82f6;">디자인 저장</button>
+
+            <h3>데이터 관리</h3>
+            <div style="display:flex; gap:10px; margin-top: 10px;">
+                <button id="export-data-button" style="background-color:#6c757d;">데이터 내보내기</button>
+                <button id="import-data-button" style="background-color:#6c757d;">데이터 불러오기</button>
+                <input type="file" id="import-file-input" accept=".json" style="display:none;">
+            </div>
+             <button id="full-reset-button" style="background-color:#c81e1e; margin-top: 10px;">전체 데이터 초기화 (매 월 초 누르세요)</button>
+
+            <button id="modal-close-button" class="modal-close-button" style="margin-top: 20px;">닫기</button>
+        </div>
+    </div>
+
+    <div id="gacha-modal" class="modal">
+        <div class="modal-content">
+            <button id="gacha-modal-close-button">&times;</button>
+            <iframe id="gacha-iframe"></iframe>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // =================================================================================
+            // 1. 앱 설정 및 상수
+            // =================================================================================
+            const APP_VERSION = "4.6.5";
+            const gachaHTML = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>뽑기</title><style>body{font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;margin:0;background-color:#f0f4f8;overflow:hidden}.gacha-container{text-align:center;background:#fff;padding:2vh 2vw;border-radius:20px;width:100%;height:100%;box-sizing:border-box;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:center;align-items:center}h1{color:#d9534f;font-size:clamp(2em, 5vh, 3em);margin:0 0 2vh 0}.gacha-machine{width:80%;max-width:300px;height:50vh;max-height:400px;background-image:url(https://i.pinimg.com/1200x/ea/8f/81/ea8f81f6ae8d02a0f1731b93e9ffaad7.jpg);background-size:contain;background-repeat:no-repeat;background-position:center;margin:2vh auto}.gacha-button{padding:2vh 4vw;font-size:clamp(1em, 3vh, 1.5em);font-weight:700;color:#fff;background-color:#5cb85c;border:none;border-radius:12px;cursor:pointer;transition:all .2s;box-shadow:0 4px 6px rgba(0,0,0,.1)}.gacha-button:active{transform:scale(.98)}#gacha-ball{position:absolute;left:50%;transform:translateX(-50%);width:clamp(150px, 30vh, 250px);height:clamp(150px, 30vh, 250px);border-radius:50%;box-shadow:0 4px 8px rgba(0,0,0,.2);display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-size:clamp(1em, 2.5vh, 1.2em);font-weight:700;color:#fff;padding:10px;box-sizing:border-box;cursor:pointer}@keyframes fall-and-reveal{0%{top:20%;transform:translateX(-50%) scale(.5);opacity:0}100%{top:70%;transform:translateX(-50%) scale(1);opacity:1}}.animate-ball{animation:fall-and-reveal 5s forwards}<\/style><script src="https://cdn.jsdelivr.net/npm/tone@14.7.58/build/Tone.js"><\/script><\/head><body><div class="gacha-container"><h1>꽝 없는 뽑기 기계<\/h1><div class="gacha-machine"><\/div><button id="gacha-button" class="gacha-button">뽑기!<\/button><div id="gacha-ball"><\/div><\/div><script>const items=['1등 상품: 멋진 상품','2등 상품: 상품권','3등 당첨: 할인쿠폰','4등 당첨: 작은 선물','5등 당첨: 커피 쿠폰','축하합니다! 사탕 획득','특별상: 초콜릿 교환권','행운상: 마이쮸','행복상: 젤리','대박상: 과자 세트','아이템 1','아이템 2','아이템 3','아이템 4','아이템 5','아이템 6','아이템 7','아이템 8','아이템 9','아이템 10','아이템 11','아이템 12','아이템 13','아이템 14','아이템 15','아이템 16','아이템 17','아이템 18','아이템 19','아이템 20','아이템 21','아이템 22','아이템 23'];const ballColors=['#ff6347','#ffb6c1','#add8e6','#90ee90','#ffa07a','#c0c0c0','#d8bfd8','#f0e68c'];const synth=new Tone.NoiseSynth({noise:{type:"brown"},envelope:{attack:.02,decay:.2,sustain:.05}}).toDestination();const ball=document.getElementById('gacha-ball'),button=document.getElementById('gacha-button');let isAnimating=!1;async function drawItem(){if(isAnimating)return;isAnimating=!0;await Tone.start();ball.style.backgroundColor=ballColors[Math.floor(Math.random()*ballColors.length)];ball.style.display='flex';ball.innerText='';synth.triggerAttackRelease("3s");ball.classList.remove('animate-ball');void ball.offsetWidth;ball.classList.add('animate-ball');button.disabled=!0;setTimeout(()=>{const selectedItem=items[Math.floor(Math.random()*items.length)];ball.innerText=\`🎉 축하합니다! \${selectedItem} 당첨! 🎉\`;button.disabled=!1;isAnimating=!1},5e3)}button.addEventListener('click',drawItem);ball.addEventListener('click',()=>{if(!isAnimating)ball.style.display='none'});<\/script><\/body><\/html>`;
+            
+            // DOM Elements
+            const chartContainer = document.getElementById('chart-container');
+            const mainTitle = document.getElementById('main-title');
+            const versionDisplay = document.getElementById('version-display');
+            const wakeLockStatus = document.getElementById('wake-lock-status');
+            const dateDisplaySection = document.getElementById('date-display-section');
+            const timeDisplaySection = document.getElementById('time-display-section');
+
+
+            // State Variables
+            let studentData = [];
+            let initialStudentNames = [];
+            let TOTAL_DAYS_IN_MONTH;
+            let audioCtx;
+            let isManualModeActive = false;
+            let alarmFlags = {};
+            let alarmTimes = ['11:08', '13:38'];
+            let wakeLockSentinel = null;
+            let designSettings = { studentNameSize: 2.2, topDisplayHeight: 28 };
+            let lastRenderedDate = null;
+            
+            const cardColors = ['#eff6ff', '#f0fdf4', '#fefce8', '#fef2f2', '#faf5ff', '#fdf2f8', '#eef2ff', '#f0fdfa'];
+            const buttonColors = ['#2563eb', '#16a34a', '#ca8a04', '#dc2626', '#9333ea', '#db2777', '#4f46e5', '#0d9488'];
+
+            // =================================================================================
+            // 2. 유틸리티 함수 (날짜, 소리 등)
+            // =================================================================================
+            function getCurrentDate() {
+                const now = new Date();
+                return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            }
+
+            function playSound(type) {
+                if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; } }
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                if (type === 'check-in') {
+                    oscillator.type = 'sine';
+                    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+                    oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.1);
+                } else {
+                    oscillator.type = 'triangle';
+                    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+                    oscillator.frequency.setValueAtTime(660, audioCtx.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(330, audioCtx.currentTime + 0.1);
+                }
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + 0.1);
+            }
+
+            let alarmOscillator = null;
+            let alarmInterval = null;
+
+            function playAlarmSound() {
+                if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; } }
+                if (alarmOscillator) {
+                    alarmOscillator.stop();
+                    clearInterval(alarmInterval);
+                }
+
+                alarmOscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                alarmOscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                alarmOscillator.type = 'sine';
+                alarmOscillator.frequency.value = 880;
+                alarmOscillator.start();
+
+                let beepOn = true;
+                gainNode.gain.value = 0.3;
+
+                alarmInterval = setInterval(() => {
+                    beepOn = !beepOn;
+                    gainNode.gain.value = beepOn ? 0.3 : 0;
+                }, 500);
+
+                setTimeout(() => {
+                    clearInterval(alarmInterval);
+                    alarmOscillator.stop();
+                    alarmOscillator = null;
+                }, 10000);
+            }
+
+            function checkAndTriggerAlarm() {
+                const now = new Date();
+                const hours = now.getHours();
+                const minutes = now.getMinutes();
+                const seconds = now.getSeconds();
+                const todayStr = now.toDateString();
+
+                if (!alarmFlags.date || alarmFlags.date !== todayStr) {
+                    alarmFlags = { date: todayStr };
+                }
+
+                alarmTimes.forEach(timeStr => {
+                    if (!timeStr) return;
+                    const [alarmHour, alarmMinute] = timeStr.split(':').map(Number);
+                    if (hours === alarmHour && minutes === alarmMinute && seconds === 0 && !alarmFlags[timeStr]) {
+                        playAlarmSound();
+                        alarmFlags[timeStr] = true;
+                    }
+                });
+            }
+            
+            const requestWakeLock = async () => {
+                if ('wakeLock' in navigator) {
+                    try {
+                        wakeLockSentinel = await navigator.wakeLock.request('screen');
+                        wakeLockStatus.style.display = 'inline';
+                        wakeLockSentinel.addEventListener('release', () => {
+                            wakeLockStatus.style.display = 'none';
+                        });
+                    } catch (err) {
+                        // 일부 환경(예: iframe)에서는 권한 정책으로 인해 이 기능이 차단될 수 있습니다.
+                    }
+                }
+            };
+
+            const handleVisibilityChange = async () => {
+                if (wakeLockSentinel !== null && document.visibilityState === 'visible') {
+                    await requestWakeLock();
+                }
+            };
+
+            // =================================================================================
+            // 3. 데이터 관리 함수
+            // =================================================================================
+            function initializeData() {
+                const storedData = JSON.parse(localStorage.getItem('libraryAttendanceData'));
+                if (storedData) {
+                    studentData = storedData.students;
+                    initialStudentNames = storedData.studentNames;
+                    TOTAL_DAYS_IN_MONTH = storedData.totalDays || 20;
+                    alarmTimes = storedData.alarmTimes || ['11:08', '13:38'];
+                    designSettings = storedData.designSettings || { studentNameSize: 2.2, topDisplayHeight: 28 };
+                    studentData.forEach(s => { if (!s.usedGachas) s.usedGachas = []; });
+                } else {
+                    TOTAL_DAYS_IN_MONTH = 20;
+                    alarmTimes = ['11:08', '13:38'];
+                    designSettings = { studentNameSize: 2.2, topDisplayHeight: 28 };
+                    initialStudentNames = [
+                        '이지한', '장별', '이기원', '이다경', '최온유', '주하엘', '김세현', '안서윤', '정해나', '원소정', 
+                        '우찬영', '전제준', '강한봄', '이기웅', '용해인', '이효율', '장설', '이하윤', '곽재은', '김태이', 
+                        '강시호', '정모세', '김도희', '김라엘', '이기백', '이건우', '김다인', '김도준', '신지우', '한재이', 
+                        '신수빈', '박지유', '권도연', '우예빈', '김도훈', '차태호', '박경민', '권나윤', '강한아'
+                    ].reverse();
+                    studentData = initialStudentNames.map(name => ({ name, attendanceCount: 0, lastCheckInDate: null, usedGachas: [] }));
+                }
+                saveData();
+            }
+            function saveData() {
+                localStorage.setItem('libraryAttendanceData', JSON.stringify({
+                    totalDays: TOTAL_DAYS_IN_MONTH,
+                    studentNames: initialStudentNames,
+                    students: studentData,
+                    alarmTimes: alarmTimes,
+                    designSettings: designSettings
+                }));
+            }
+
+            // =================================================================================
+            // 4. UI 렌더링 함수
+            // =================================================================================
+            function applyDesignSettings() {
+                const styleTag = document.getElementById('dynamic-styles');
+                styleTag.innerHTML = `
+                    :root {
+                        --top-display-height: ${designSettings.topDisplayHeight}vh;
+                    }
+                    .student-name {
+                        font-size: clamp(${designSettings.studentNameSize * 0.8}em, ${designSettings.studentNameSize * 2}vh, ${designSettings.studentNameSize}em) !important;
+                    }
+                `;
+            }
+
+            function renderStudents() {
+                chartContainer.innerHTML = '';
+                const maxAttendance = Math.max(0, ...studentData.map(s => s.attendanceCount));
+                
+                studentData.forEach((student, studentIndex) => {
+                    const card = document.createElement('div');
+                    card.className = 'student-card';
+                    const colorIndex = initialStudentNames.indexOf(student.name) % cardColors.length;
+                    card.style.backgroundColor = cardColors[colorIndex];
+                    
+                    const hasAttendedToday = student.lastCheckInDate === getCurrentDate();
+
+                    const nameDiv = document.createElement('div');
+                    nameDiv.className = 'student-name';
+                    let nameText = student.name;
+                    if (maxAttendance > 0 && student.attendanceCount === maxAttendance) {
+                        nameText += ' 👑';
+                    }
+                    nameDiv.textContent = nameText;
+                    
+                    const infoDiv = document.createElement('div');
+                    infoDiv.className = 'attendance-info';
+                    infoDiv.innerHTML = `
+                        <span class="count">${student.attendanceCount}</span>
+                        <span class="label"> / ${TOTAL_DAYS_IN_MONTH}회</span>
+                    `;
+
+                    const buttonsDiv = document.createElement('div');
+                    buttonsDiv.className = 'action-buttons';
+
+                    if (isManualModeActive) {
+                        const plusBtn = document.createElement('button');
+                        plusBtn.className = 'circular-btn';
+                        plusBtn.textContent = '+1';
+                        plusBtn.style.backgroundColor = '#28a745';
+                        plusBtn.onclick = () => handleManualIncrement(studentIndex);
+                        
+                        const minusBtn = document.createElement('button');
+                        minusBtn.className = 'circular-btn';
+                        minusBtn.textContent = '-1';
+                        minusBtn.style.backgroundColor = '#dc3545';
+                        minusBtn.onclick = () => handleManualDecrement(studentIndex);
+
+                        buttonsDiv.appendChild(minusBtn);
+                        buttonsDiv.appendChild(plusBtn);
+                    } else {
+                        const mainBtn = document.createElement('button');
+                        mainBtn.className = 'circular-btn';
+                        
+                        if (hasAttendedToday) {
+                            mainBtn.textContent = '성공! 🎉';
+                            mainBtn.classList.add('undo-btn');
+                            mainBtn.onclick = () => handleUndo(studentIndex);
+                        } else {
+                            mainBtn.textContent = '출석';
+                            mainBtn.style.backgroundColor = buttonColors[colorIndex];
+                            mainBtn.onclick = () => handleCheckIn(studentIndex);
+                        }
+                        buttonsDiv.appendChild(mainBtn);
+                    }
+                    
+                    const giftContainer = document.createElement('div');
+                    giftContainer.className = 'gift-btn-container';
+                    [13, 18].forEach(day => {
+                        if (student.attendanceCount >= day) {
+                            const giftBtn = document.createElement('button');
+                            giftBtn.className = 'circular-btn gift-btn';
+                            giftBtn.innerHTML = '🎁';
+                            giftBtn.title = `${day}일 출석 선물`;
+                            if (student.usedGachas.includes(day)) {
+                                giftBtn.disabled = true;
+                            }
+                            giftBtn.onclick = () => {
+                                student.usedGachas.push(day);
+                                saveData();
+                                renderStudents();
+                                openGachaModal();
+                            };
+                            giftContainer.appendChild(giftBtn);
+                        }
+                    });
+
+                    if (giftContainer.hasChildNodes()) {
+                        buttonsDiv.appendChild(giftContainer);
+                    }
+
+                    card.appendChild(nameDiv);
+                    card.appendChild(infoDiv);
+                    card.appendChild(buttonsDiv);
+                    
+                    chartContainer.appendChild(card);
+                });
+            }
+
+            function renderDateDisplay() {
+                const todayDateString = getCurrentDate();
+                if (lastRenderedDate === todayDateString) return;
+
+                const koreanHolidays = new Set(['2024-01-01', '2024-02-09', '2024-02-10', '2024-02-11', '2024-02-12', '2024-03-01', '2024-04-10', '2024-05-01', '2024-05-05', '2024-05-06', '2024-05-15', '2024-06-06', '2024-08-15', '2024-09-16', '2024-09-17', '2024-09-18', '2024-10-03', '2024-10-09', '2024-12-25', '2025-01-01', '2025-01-28', '2025-01-29', '2025-01-30', '2025-03-01', '2025-05-05', '2025-05-06', '2025-06-06', '2025-08-15', '2025-10-03', '2025-10-06', '2025-10-07', '2025-10-08', '2025-10-09', '2025-12-25']);
+                function isWeekendOrHoliday(date) {
+                    const day = date.getDay();
+                    if (day === 0 || day === 6) return true;
+                    const dateString = date.getFullYear() + '-' + ('0' + (date.getMonth() + 1)).slice(-2) + '-' + ('0' + date.getDate()).slice(-2);
+                    return koreanHolidays.has(dateString);
+                }
+                function formatDateToHTML(date) {
+                    const month = date.getMonth() + 1;
+                    const dayOfMonth = date.getDate();
+                    const dayOfWeek = ['일', '월', '화', '수', '목', '금', '토'][date.getDay()];
+                    return `<span class="date-number">${month}</span><span class="date-text">월</span><span class="date-number">${dayOfMonth}</span><span class="date-text">일 (${dayOfWeek})</span>`;
+                }
+                const loanDate = new Date();
+                document.getElementById('loan-date-container').innerHTML = formatDateToHTML(loanDate);
+                const returnDate = new Date();
+                returnDate.setDate(loanDate.getDate() + 14);
+                while (isWeekendOrHoliday(returnDate)) {
+                    returnDate.setDate(returnDate.getDate() + 1);
+                }
+                document.getElementById('return-date-container').innerHTML = formatDateToHTML(returnDate);
+                lastRenderedDate = todayDateString;
+            }
+
+            function updateTimeDisplay() {
+                const now = new Date();
+                const hours = now.getHours();
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                const ampm = hours >= 12 ? '오후' : '오전';
+                const displayHours = hours % 12 || 12;
+                timeDisplaySection.innerHTML = `
+                    <span class="time-icon">🕒</span>
+                    <span class="time-sub">${ampm}</span>
+                    <span class="time-main">${displayHours}</span>
+                    <span class="time-sub">시</span>
+                    <span class="time-main">${minutes}</span>
+                    <span class="time-sub">분</span>
+                `;
+            }
+
+            // =================================================================================
+            // 5. 이벤트 핸들러 함수
+            // =================================================================================
+            function handleCheckIn(studentIndex) {
+                const student = studentData[studentIndex];
+                if (student.lastCheckInDate === getCurrentDate()) return;
+                playSound('check-in');
+                student.attendanceCount++;
+                student.lastCheckInDate = getCurrentDate();
+                saveData();
+                renderStudents();
+            }
+            function handleUndo(studentIndex) {
+                const student = studentData[studentIndex];
+                if (student.lastCheckInDate === getCurrentDate()) {
+                    playSound('undo');
+                    student.attendanceCount--;
+                    student.lastCheckInDate = null;
+                    saveData();
+                    renderStudents();
+                }
+            }
+            function handleManualIncrement(studentIndex) {
+                playSound('check-in');
+                studentData[studentIndex].attendanceCount++;
+                saveData();
+                renderStudents();
+            }
+            function handleManualDecrement(studentIndex) {
+                if (studentData[studentIndex].attendanceCount > 0) {
+                    playSound('undo');
+                    studentData[studentIndex].attendanceCount--;
+                    saveData();
+                    renderStudents();
+                }
+            }
+            function openGachaModal() {
+                document.getElementById('gacha-iframe').srcdoc = gachaHTML;
+                document.getElementById('gacha-modal').style.display = 'flex';
+            }
+            function setupEventListeners() {
+                const adminCodeModal = document.getElementById('admin-code-modal');
+                const adminCodeInput = document.getElementById('admin-code-input');
+                const adminCodeTitle = document.getElementById('admin-code-title');
+                let currentAdminAction = null;
+
+                document.getElementById('admin-button').onclick = () => {
+                    currentAdminAction = 'admin';
+                    adminCodeTitle.textContent = '관리자 코드 입력';
+                    adminCodeInput.value = '';
+                    adminCodeModal.style.display = 'flex';
+                    adminCodeInput.focus();
+                };
+                document.getElementById('manual-mode-button').onclick = () => {
+                    currentAdminAction = 'manual';
+                    adminCodeTitle.textContent = '수동 조정 코드 입력';
+                    adminCodeInput.value = '';
+                    adminCodeModal.style.display = 'flex';
+                    adminCodeInput.focus();
+                };
+
+                document.getElementById('admin-code-cancel').onclick = () => adminCodeModal.style.display = 'none';
+                document.getElementById('admin-code-confirm').onclick = () => {
+                    if (adminCodeInput.value === '6408') {
+                        adminCodeModal.style.display = 'none';
+                        if (currentAdminAction === 'admin') {
+                            openAdminModal();
+                        } else if (currentAdminAction === 'manual') {
+                            enterManualMode();
+                        }
+                    } else {
+                        alert('코드가 일치하지 않습니다.');
+                        adminCodeInput.value = '';
+                    }
+                };
+                
+                document.getElementById('exit-manual-mode-button').onclick = () => {
+                    isManualModeActive = false;
+                    document.getElementById('admin-button').style.display = 'inline-block';
+                    document.getElementById('manual-mode-button').style.display = 'inline-block';
+                    document.getElementById('exit-manual-mode-button').style.display = 'none';
+                    document.getElementById('manual-mode-all-controls').style.display = 'none';
+                    renderStudents();
+                };
+                
+                document.getElementById('all-plus-button').onclick = () => {
+                    studentData.forEach(student => student.attendanceCount++);
+                    saveData();
+                    renderStudents();
+                };
+                document.getElementById('all-minus-button').onclick = () => {
+                    studentData.forEach(student => {
+                        if (student.attendanceCount > 0) student.attendanceCount--;
+                    });
+                    saveData();
+                    renderStudents();
+                };
+
+                const gachaModal = document.getElementById('gacha-modal');
+                document.getElementById('gacha-modal-close-button').onclick = () => {
+                    document.getElementById('gacha-iframe').srcdoc = '';
+                    gachaModal.style.display = 'none';
+                };
+            }
+            
+            function enterManualMode() {
+                isManualModeActive = true;
+                document.getElementById('admin-button').style.display = 'none';
+                document.getElementById('manual-mode-button').style.display = 'none';
+                document.getElementById('exit-manual-mode-button').style.display = 'inline-block';
+                document.getElementById('manual-mode-all-controls').style.display = 'flex';
+                renderStudents();
+            }
+
+            function openAdminModal() {
+                const adminModal = document.getElementById('admin-modal');
+                const selects = ['student-select-manage', 'student-select-reward'];
+                selects.forEach(id => {
+                    const select = document.getElementById(id);
+                    select.innerHTML = studentData.map((s, i) => `<option value="${i}">${s.name}</option>`).join('');
+                });
+                
+                document.getElementById('alarm-time-1').value = alarmTimes[0];
+                document.getElementById('alarm-time-2').value = alarmTimes[1];
+                
+                const fontSizeSlider = document.getElementById('font-size-slider');
+                const fontSizeValue = document.getElementById('font-size-value');
+                fontSizeSlider.value = designSettings.studentNameSize;
+                fontSizeValue.textContent = `${designSettings.studentNameSize}em`;
+
+                adminModal.style.display = 'flex';
+            }
+
+            function setupAdminModalListeners() {
+                const adminModal = document.getElementById('admin-modal');
+                document.getElementById('modal-close-button').onclick = () => adminModal.style.display = 'none';
+                
+                // 학생 관리
+                document.getElementById('add-student-button').onclick = () => {
+                    const nameInput = document.getElementById('new-student-name-input');
+                    const newName = nameInput.value.trim();
+                    if (newName && !initialStudentNames.includes(newName)) {
+                        initialStudentNames.push(newName);
+                        studentData.push({ name: newName, attendanceCount: 0, lastCheckInDate: null, usedGachas: [] });
+                        saveData();
+                        renderStudents();
+                        openAdminModal();
+                        nameInput.value = '';
+                    } else { alert('이름을 입력하지 않았거나 이미 존재하는 이름입니다.'); }
+                };
+                document.getElementById('edit-student-name-button').onclick = () => {
+                    const select = document.getElementById('student-select-manage');
+                    const nameInput = document.getElementById('edit-student-name-input');
+                    const newName = nameInput.value.trim();
+                    if (newName && !initialStudentNames.includes(newName)) {
+                        const studentIndex = parseInt(select.value);
+                        const oldName = studentData[studentIndex].name;
+                        studentData[studentIndex].name = newName;
+                        initialStudentNames[initialStudentNames.indexOf(oldName)] = newName;
+                        saveData();
+                        renderStudents();
+                        openAdminModal();
+                        nameInput.value = '';
+                    } else { alert('새 이름을 입력하지 않았거나 이미 존재하는 이름입니다.'); }
+                };
+                document.getElementById('delete-student-button').onclick = () => {
+                    const select = document.getElementById('student-select-manage');
+                    const studentIndex = parseInt(select.value);
+                    const studentName = studentData[studentIndex].name;
+                    if (confirm(`'${studentName}' 학생을 정말로 삭제하시겠습니까?`)) {
+                        studentData.splice(studentIndex, 1);
+                        initialStudentNames = initialStudentNames.filter(name => name !== studentName);
+                        saveData();
+                        renderStudents();
+                        openAdminModal();
+                    }
+                };
+                
+                // 보상 관리
+                document.getElementById('reset-gift-13-button').onclick = () => resetGift(13);
+                document.getElementById('reset-gift-18-button').onclick = () => resetGift(18);
+                function resetGift(day) {
+                    const select = document.getElementById('student-select-reward');
+                    const studentIndex = parseInt(select.value);
+                    const student = studentData[studentIndex];
+                    student.usedGachas = student.usedGachas.filter(gachaDay => gachaDay !== day);
+                    saveData();
+                    renderStudents();
+                    alert(`'${student.name}' 학생의 ${day}일 선물이 초기화되었습니다.`);
+                }
+                
+                // 알람 관리
+                document.getElementById('save-alarm-times-button').onclick = () => {
+                    const alarm1 = document.getElementById('alarm-time-1').value;
+                    const alarm2 = document.getElementById('alarm-time-2').value;
+                    if (alarm1 && alarm2) {
+                        alarmTimes = [alarm1, alarm2];
+                        saveData();
+                        alert(`알람 시간이 ${alarm1}, ${alarm2}으로 저장되었습니다.`);
+                    } else {
+                        alert('유효한 시간을 입력해주세요.');
+                    }
+                };
+
+                // 디자인 설정
+                const fontSizeSlider = document.getElementById('font-size-slider');
+                const fontSizeValue = document.getElementById('font-size-value');
+                const topDisplayHeightSlider = document.getElementById('top-display-height-slider');
+                const topDisplayHeightValue = document.getElementById('top-display-height-value');
+
+                fontSizeSlider.oninput = () => {
+                    fontSizeValue.textContent = `${fontSizeSlider.value}em`;
+                };
+                topDisplayHeightSlider.oninput = () => {
+                    topDisplayHeightValue.textContent = `${topDisplayHeightSlider.value}vh`;
+                };
+                document.getElementById('save-design-button').onclick = () => {
+                    designSettings.studentNameSize = parseFloat(fontSizeSlider.value);
+                    designSettings.topDisplayHeight = parseInt(topDisplayHeightSlider.value);
+                    saveData();
+                    applyDesignSettings();
+                    alert('디자인 설정이 저장되었습니다.');
+                };
+
+
+                // 데이터 관리
+                document.getElementById('export-data-button').onclick = () => {
+                    const dataStr = JSON.stringify(JSON.parse(localStorage.getItem('libraryAttendanceData')), null, 2);
+                    const dataBlob = new Blob([dataStr], {type : 'application/json'});
+                    const url = URL.createObjectURL(dataBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `도담마루_출석기록_${getCurrentMonthString()}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                };
+                const fileInput = document.getElementById('import-file-input');
+                document.getElementById('import-data-button').onclick = () => fileInput.click();
+                fileInput.onchange = (event) => {
+                    const file = event.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            try {
+                                const importedData = JSON.parse(e.target.result);
+                                if (importedData.students && importedData.studentNames) {
+                                    if(confirm("데이터를 불러오면 현재 기록이 덮어씌워집니다. 계속하시겠습니까?")) {
+                                        localStorage.setItem('libraryAttendanceData', JSON.stringify(importedData));
+                                        init();
+                                        alert("데이터를 성공적으로 불러왔습니다.");
+                                        adminModal.style.display = 'none';
+                                    }
+                                } else { alert("파일 형식이 올바르지 않습니다."); }
+                            } catch (error) { alert("파일을 읽는 중 오류가 발생했습니다."); }
+                        };
+                        reader.readAsText(file);
+                    }
+                };
+                document.getElementById('full-reset-button').onclick = () => {
+                    if (confirm("정말로 모든 학생의 출석 기록과 선물 기록, 알람 시간, 디자인 설정을 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) {
+                        localStorage.removeItem('libraryAttendanceData');
+                        init();
+                        alert("모든 데이터가 초기화되었습니다.");
+                        adminModal.style.display = 'none';
+                    }
+                };
+            }
+
+            // =================================================================================
+            // 6. 앱 초기화
+            // =================================================================================
+            function init() {
+                versionDisplay.textContent = `v${APP_VERSION}`;
+                mainTitle.textContent = `${new Date().getMonth() + 1}월 도담마루 도서관 출석부 📚`;
+                
+                initializeData();
+                applyDesignSettings();
+                renderStudents();
+                
+                // 상단 디스플레이 초기화 및 업데이트 설정
+                let isDateVisible = true;
+                renderDateDisplay();
+                updateTimeDisplay();
+                setInterval(() => {
+                    isDateVisible = !isDateVisible;
+                    dateDisplaySection.classList.toggle('display-visible', isDateVisible);
+                    dateDisplaySection.classList.toggle('display-hidden', !isDateVisible);
+                    timeDisplaySection.classList.toggle('display-visible', !isDateVisible);
+                    timeDisplaySection.classList.toggle('display-hidden', isDateVisible);
+                }, 10000);
+                
+                setInterval(() => {
+                    updateTimeDisplay();
+                    renderDateDisplay(); // 매분 날짜 체크
+                }, 1000);
+
+
+                setupEventListeners();
+                setupAdminModalListeners();
+                setInterval(checkAndTriggerAlarm, 1000);
+                
+                requestWakeLock();
+                document.addEventListener('visibilitychange', handleVisibilityChange);
+            }
+
+            init();
+        });
+    </script>
+</body>
+</html>
+
